@@ -7,19 +7,24 @@ All concepts and rules in this document strictly enforce the domain vocabulary e
 ## Five Core Product Rules
 
 1. **Machine Telemetry Ingestion Requires a Valid Agent Key**  
-   An **Agent** pushing discovered **Device** records or streaming **Telemetry Metric** observations must authenticate with a valid **Agent Key** assigned to a registered **Organization**. Requests lacking a valid key are rejected immediately with HTTP 401 Unauthorized.
+   An **Agent** pushing discovered **Device** records or streaming **Telemetry Metric** observations must authenticate with a valid **Agent Key** assigned to a registered **Organization**. Requests lacking a valid key are rejected immediately with HTTP 401 Unauthorized.  
+   *Enforced in code:* [backend/middleware/agentMiddleware.js:9-32](file:///e:/NetSight-main/NetSight-main/backend/middleware/agentMiddleware.js#L9-L32)
 
 2. **Strict Multi-Tenant Isolation by Organization**  
-   Every **Device**, **Telemetry Metric**, **Alert**, and **Audit Log** is bound to an **Organization**. Users and **Agents** can only query or mutate resources matching their verified organization context; cross-organization access is strictly prohibited at the database query level.
+   Every **Device**, **Telemetry Metric**, **Alert**, and **Audit Log** is bound to an **Organization**. Users and **Agents** can only query or mutate resources matching their verified organization context; cross-organization access is strictly prohibited at the database query level.  
+   *Enforced in code:* [backend/controllers/deviceController.js:626-630](file:///e:/NetSight-main/NetSight-main/backend/controllers/deviceController.js#L626-L630) and [backend/controllers/auditController.js:10-12](file:///e:/NetSight-main/NetSight-main/backend/controllers/auditController.js#L10-L12)
 
 3. **Windowed Alert Deduplication**  
-   When a **Device** metric violates a health threshold, a new **Alert** is generated only if no active **Alert** (in **Alert State** `NEW` or `ACKNOWLEDGED`) exists for that specific **Device** and metric. Successive violations increment the duplicate counter and update the metric value without inserting redundant database rows.
+   When a **Device** metric violates a health threshold, a new **Alert** is generated only if no active **Alert** (in **Alert State** `NEW` or `ACKNOWLEDGED`) exists for that specific **Device** and metric. Successive violations increment the duplicate counter and update the metric value without inserting redundant database rows.  
+   *Enforced in code:* [backend/utils/alertChecker.js:101-131](file:///e:/NetSight-main/NetSight-main/backend/utils/alertChecker.js#L101-L131)
 
 4. **Role-Based Administrative Control**  
-   Only users possessing the `admin` role within an **Organization** are authorized to alter **Subnet CIDR** scanning boundaries, generate new **Agent Keys**, or manage user access permissions. Operator and viewer roles can inspect **Network Topology** and **Device** health, but cannot mutate operational parameters.
+   Only users possessing the `admin` role within an **Organization** are authorized to alter **Subnet CIDR** scanning boundaries, generate new **Agent Keys**, or manage user access permissions. Operator and viewer roles can inspect **Network Topology** and **Device** health, but cannot mutate operational parameters.  
+   *Enforced in code:* [backend/middleware/authMiddleware.js:36-43](file:///e:/NetSight-main/NetSight-main/backend/middleware/authMiddleware.js#L36-L43)
 
 5. **Deterministic Device Health Status Transitions**  
-   A **Device** transitions between **Health Status** values based on active telemetry: it is marked `Online` when responding within threshold latency, `Degraded` when packet loss or latency crosses warning thresholds, and `Offline` when heartbeats fail consecutively, automatically creating an availability **Alert**.
+   A **Device** transitions between **Health Status** values based on active telemetry: it is marked `Online` when responding within threshold latency, `Degraded` when packet loss or latency crosses warning thresholds, and `Offline` when heartbeats fail consecutively, automatically creating an availability **Alert**.  
+   *Enforced in code:* [backend/utils/alertChecker.js:20-34](file:///e:/NetSight-main/NetSight-main/backend/utils/alertChecker.js#L20-L34) and [backend/utils/liveState.js:21-37](file:///e:/NetSight-main/NetSight-main/backend/utils/liveState.js#L21-L37)
 
 ---
 
@@ -52,7 +57,7 @@ All concepts and rules in this document strictly enforce the domain vocabulary e
 
 ### The Local Network Probe Boundary
 - **Where Core Logic Stops and the Outside World Begins:**  
-  NetSight's core business logic (device inventory models, telemetry aggregation, topology graphing, and alert threshold calculation) operates strictly on validated, high-level JSON domain structures. Core logic stops at the operating system subprocess and raw socket boundary inside [agent/src/services/scanner.js:40-120](file:///e:/NetSight-main/NetSight-main/agent/src/services/scanner.js#L40-L120).
+  NetSight's core business logic (device inventory models, telemetry aggregation, topology graphing, and alert threshold calculation) operates strictly on validated, high-level JSON domain structures. Core logic stops at the operating system subprocess and raw socket boundary inside [agent/src/services/scanner.js:74-120](file:///e:/NetSight-main/NetSight-main/agent/src/services/scanner.js#L74-L120).
 - **Which Dependency It Protects You From:**  
   This boundary isolates NetSight from direct dependencies on underlying operating system network utilities (`arp`, `ping`, `ipconfig`, `snmpget`), disparate platform command syntax (Windows flags vs. Linux flags), variable terminal string outputs, raw ICMP protocol sockets, and physical Ethernet/Wi-Fi interface fluctuations. The **Agent** absorbs and normalizes all OS-level hardware anomalies, presenting only clean, uniform telemetry to the backend API.
 
